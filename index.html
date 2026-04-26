@@ -192,7 +192,7 @@ input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:14px;h
     </div>
     <div class="mp-info">
       <div class="mp-name" id="mp-name">lagu.mp3</div>
-      <div class="mp-stat" id="mp-stat">Memuat musik...</div>
+      <div class="mp-stat" id="mp-stat">Ketuk ▶ untuk memutar</div>
       <div class="mp-prog">
         <span class="tlbl" id="mp-cur">0:00</span>
         <div class="prog-track" id="pt1" ontouchstart="sStart(event,this)" ontouchmove="sMove(event)" ontouchend="sEnd(event)">
@@ -226,12 +226,7 @@ input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:14px;h
     <div class="panel active" id="panel-sinopsis">
       <div class="spad">
         <div class="slbl">Tentang Novel</div>
-        <div class="sbody" id="disp-sinopsis">Februari yang Tak Pernah Usai
-2021 — 2026 · Sebuah Kisah Nyata
-Semua bermula dari satu pagi di lapangan sekolah, satu pesan kecil di bulan Februari, dan seorang gadis bernama Fanny.
-Lima tahun. Dari tidak punya apa-apa sampai bisa melihat dunia. Dari dua anak sekolah yang belum tahu apa itu cinta, sampai dua orang dewasa yang sudah saling mengenal lebih dalam dari siapa pun.
-Tapi pada 24 April 2026, semuanya berubah dalam satu percakapan.
-Sebuah kisah nyata tentang cinta, perjuangan, dan kenangan yang tidak pernah benar-benar pergi.</div>
+        <div class="sbody" id="disp-sinopsis">Masukkan sinopsis novel Anda di sini. Kisah yang penuh dengan misteri, cinta, dan perjuangan — mengharukan setiap hati yang membacanya...</div>
         <div class="gtags" id="disp-genre"><span class="gtag">Fiksi</span><span class="gtag">Romantis</span><span class="gtag">Drama</span></div>
         <div class="irow"><span class="ik">Penulis</span><span class="iv" id="disp-penulis">Nama Penulis</span></div>
         <div class="irow"><span class="ik">Tahun</span><span class="iv" id="disp-tahun">2024</span></div>
@@ -292,7 +287,7 @@ Sebuah kisah nyata tentang cinta, perjuangan, dan kenangan yang tidak pernah ben
             <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
           </div>
           <div class="npt" id="np-t">lagu.mp3</div>
-          <div class="nps" id="np-s">Memuat musik...</div>
+          <div class="nps" id="np-s">Ketuk ▶ untuk memutar</div>
           <div class="npprog">
             <span class="tlbl" id="np-cur">0:00</span>
             <div class="prog-track" id="pt2" ontouchstart="sStart(event,this)" ontouchmove="sMove(event)" ontouchend="sEnd(event)">
@@ -325,8 +320,8 @@ Sebuah kisah nyata tentang cinta, perjuangan, dan kenangan yang tidak pernah ben
   <div class="msheet">
     <div class="mhandle"></div>
     <div class="mtitle">Edit Info Novel</div>
-    <div class="fgrp"><div class="flbl">Febuari yang tak pernah usai</div><input class="finp" id="i-title" placeholder="Judul novel..."></div>
-    <div class="fgrp"><div class="flbl">fikri hasyim al rasyid</div><input class="finp" id="i-author" placeholder="Nama penulis..."></div>
+    <div class="fgrp"><div class="flbl">Judul Novel</div><input class="finp" id="i-title" placeholder="Judul novel..."></div>
+    <div class="fgrp"><div class="flbl">Nama Penulis</div><input class="finp" id="i-author" placeholder="Nama penulis..."></div>
     <div class="fgrp"><div class="flbl">Sinopsis</div><textarea class="fta" id="i-sinopsis" placeholder="Sinopsis..."></textarea></div>
     <div class="fgrp"><div class="flbl">Genre (pisah koma)</div><input class="finp" id="i-genre" placeholder="Fiksi, Romantis, Drama"></div>
     <div class="fgrp"><div class="flbl">Tahun Terbit</div><input class="finp" id="i-tahun" placeholder="2024"></div>
@@ -347,12 +342,13 @@ Sebuah kisah nyata tentang cinta, perjuangan, dan kenangan yang tidak pernah ben
   </div>
 </div>
 
-<audio id="aud" src="lagu.mp3"
+<audio id="aud"
   oncanplay="onMusicOK()"
   onerror="onMusicErr()"
   ontimeupdate="onTick()"
   onloadedmetadata="onMeta()"
-  onended="onEnd()">
+  onended="onEnd()"
+  preload="none">
 </audio>
 
 <script>
@@ -370,7 +366,7 @@ const S = {
     {t:'Bab Kedua',   d:'Pertemuan yang mengubah segalanya'},
     {t:'Bab Ketiga',  d:'Rahasia yang tersembunyi'},
   ],
-  playing:false, musicOK:false,
+  playing:false, musicOK:false, pendingPlay:false, musicLoading:false,
 };
 
 const aud = document.getElementById('aud');
@@ -453,13 +449,47 @@ function setStat(s){
   document.getElementById('mp-stat').textContent=s;
   document.getElementById('np-s').textContent=s;
 }
-function onMusicOK(){ S.musicOK=true; setStat('Siap diputar'); }
-function onMusicErr(){ setStat('lagu.mp3 tidak ditemukan'); }
+function onMusicOK(){
+  S.musicOK=true;
+  setStat('Siap diputar');
+  // Langsung play karena ini dipanggil setelah user gesture (tap)
+  if(S.pendingPlay){
+    S.pendingPlay=false;
+    aud.play().then(()=>setPlay(true)).catch(e=>{
+      setStat('Gagal memutar: '+e.message);
+    });
+  }
+}
+function onMusicErr(){
+  setStat('lagu.mp3 tidak ditemukan di server');
+  S.musicLoading=false;
+}
 
 function togglePlay(){
-  if(!S.musicOK){ setStat('Musik belum siap'); return; }
-  if(S.playing){ aud.pause(); setPlay(false); }
-  else { aud.play().catch(()=>setStat('Ketuk lagi untuk memutar')); setPlay(true); }
+  // Jika src belum di-set (belum pernah tap) — load dulu dalam gesture context
+  if(!aud.src || aud.src===window.location.href){
+    S.pendingPlay=true;
+    S.musicLoading=true;
+    setStat('Memuat musik...');
+    aud.src='lagu.mp3';
+    aud.load();
+    return;
+  }
+  if(S.playing){
+    aud.pause();
+    setPlay(false);
+  } else {
+    const playPromise=aud.play();
+    if(playPromise!==undefined){
+      playPromise.then(()=>setPlay(true)).catch(e=>{
+        // Safari kadang butuh user gesture ulang
+        setStat('Ketuk play lagi ▶');
+        setPlay(false);
+      });
+    } else {
+      setPlay(true);
+    }
+  }
 }
 function setPlay(v){
   S.playing=v;
