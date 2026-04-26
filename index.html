@@ -155,6 +155,21 @@ input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:14px;h
 .finp,.fta{width:100%;background:var(--bg3);border:.5px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;font-family:'Lato',sans-serif;outline:none}
 .finp:focus,.fta:focus{border-color:rgba(201,169,122,.4)}
 .fta{resize:none;height:110px;line-height:1.6}
+.dots{display:flex;justify-content:center;gap:7px;margin-top:14px}
+.dot{width:7px;height:7px;border-radius:50%;background:rgba(201,169,122,.2);transition:background .25s,transform .25s}
+.dot.active{background:var(--gold);transform:scale(1.25)}
+.plist{margin-top:16px;border:.5px solid var(--line);border-radius:12px;overflow:hidden}
+.plist-item{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:.5px solid var(--line);cursor:pointer;transition:background .15s}
+.plist-item:last-child{border-bottom:none}
+.plist-item:active{background:rgba(255,255,255,.03)}
+.plist-item.playing{background:rgba(201,169,122,.07)}
+.pl-num{font-family:'Playfair Display',serif;font-size:18px;font-style:italic;color:rgba(201,169,122,.25);min-width:24px}
+.plist-item.playing .pl-num{color:var(--gold)}
+.pl-name{flex:1;font-size:13px;color:var(--text)}
+.plist-item.playing .pl-name{color:var(--gold)}
+.pl-file{font-size:11px;color:var(--text-muted);margin-top:2px}
+.pl-icon svg{fill:var(--gold);width:16px;height:16px;display:none}
+.plist-item.playing .pl-icon svg{display:block}
 </style>
 </head>
 <body>
@@ -191,8 +206,8 @@ input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:14px;h
       <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
     </div>
     <div class="mp-info">
-      <div class="mp-name" id="mp-name">lagu.mp3</div>
-      <div class="mp-stat" id="mp-stat">Ketuk ▶ untuk memutar</div>
+      <div class="mp-name" id="mp-name">Lagu 1</div>
+      <div class="mp-stat" id="mp-stat">Lagu 1 · 2 · 3  — Ketuk ▶</div>
       <div class="mp-prog">
         <span class="tlbl" id="mp-cur">0:00</span>
         <div class="prog-track" id="pt1" ontouchstart="sStart(event,this)" ontouchmove="sMove(event)" ontouchend="sEnd(event)">
@@ -264,7 +279,7 @@ input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:14px;h
       </div>
       <div class="reader-music-bar" id="rmusic-bar">
         <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
-        <span id="rmusic-lbl">lagu.mp3</span>
+        <span id="rmusic-lbl">Lagu 1</span>
         <button onclick="togglePlay()" id="rmusic-play" class="rm-play paused">
           <svg class="ic-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
           <svg class="ic-pause" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
@@ -286,7 +301,7 @@ input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:14px;h
           <div class="npdisc" id="np-disc">
             <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
           </div>
-          <div class="npt" id="np-t">lagu.mp3</div>
+          <div class="npt" id="np-t">Lagu 1</div>
           <div class="nps" id="np-s">Ketuk ▶ untuk memutar</div>
           <div class="npprog">
             <span class="tlbl" id="np-cur">0:00</span>
@@ -303,13 +318,47 @@ input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:14px;h
             </button>
             <button class="ibtn" onclick="skipFw()"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8l-5.5 4zM16 6h2v12h-2z"/></svg></button>
           </div>
+          <div class="dots">
+            <div class="dot active"></div>
+            <div class="dot"></div>
+            <div class="dot"></div>
+          </div>
           <div class="volrow">
             <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm10 .17v5.66A4.5 4.5 0 0 0 13 9.17z"/></svg>
             <input type="range" class="vol" min="0" max="1" step="0.01" value="1" oninput="setVol(this.value)">
             <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
           </div>
         </div>
+
+        <div class="plist" id="plist">
+          <div class="plist-item playing" onclick="selectTrack(0)">
+            <div class="pl-num">1</div>
+            <div style="flex:1">
+              <div class="pl-name">Lagu 1</div>
+              <div class="pl-file">lagu.mp3</div>
+            </div>
+            <div class="pl-icon"><svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg></div>
+          </div>
+          <div class="plist-item" onclick="selectTrack(1)">
+            <div class="pl-num">2</div>
+            <div style="flex:1">
+              <div class="pl-name">Lagu 2</div>
+              <div class="pl-file">lagu2.mp3</div>
+            </div>
+            <div class="pl-icon"><svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg></div>
+          </div>
+          <div class="plist-item" onclick="selectTrack(2)">
+            <div class="pl-num">3</div>
+            <div style="flex:1">
+              <div class="pl-name">Lagu 3</div>
+              <div class="pl-file">lagu3.mp3</div>
+            </div>
+            <div class="pl-icon"><svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg></div>
+          </div>
+        </div>
+
       </div>
+    </div>
     </div>
 
   </div>
@@ -367,6 +416,12 @@ const S = {
     {t:'Bab Ketiga',  d:'Rahasia yang tersembunyi'},
   ],
   playing:false, musicOK:false, pendingPlay:false, musicLoading:false,
+  playlist:[
+    {file:'lagu.mp3',  name:'Lagu 1'},
+    {file:'lagu2.mp3', name:'Lagu 2'},
+    {file:'lagu3.mp3', name:'Lagu 3'},
+  ],
+  trackIdx:0,
 };
 
 const aud = document.getElementById('aud');
@@ -395,6 +450,19 @@ function goRead(){
   document.getElementById('panel-baca').classList.add('active');
   tabs[2].classList.add('active');
   document.querySelector('.app').classList.add('reading');
+}
+
+/* ── SELECT TRACK ── */
+function selectTrack(idx){
+  const wasPlaying=S.playing;
+  S.trackIdx=idx;
+  loadTrack(idx, wasPlaying);
+  updatePlist();
+}
+function updatePlist(){
+  document.querySelectorAll('.plist-item').forEach((el,i)=>{
+    el.classList.toggle('playing', i===S.trackIdx);
+  });
 }
 
 /* ── RENDER ── */
@@ -452,43 +520,33 @@ function setStat(s){
 function onMusicOK(){
   S.musicOK=true;
   setStat('Siap diputar');
-  // Langsung play karena ini dipanggil setelah user gesture (tap)
   if(S.pendingPlay){
     S.pendingPlay=false;
     aud.play().then(()=>setPlay(true)).catch(e=>{
-      setStat('Gagal memutar: '+e.message);
+      setStat('Ketuk play lagi ▶');
     });
   }
 }
 function onMusicErr(){
-  setStat('lagu.mp3 tidak ditemukan di server');
+  const name=S.playlist[S.trackIdx].name;
+  setStat(name+' tidak ditemukan');
   S.musicLoading=false;
 }
 
 function togglePlay(){
-  // Jika src belum di-set (belum pernah tap) — load dulu dalam gesture context
   if(!aud.src || aud.src===window.location.href){
-    S.pendingPlay=true;
-    S.musicLoading=true;
-    setStat('Memuat musik...');
-    aud.src='lagu.mp3';
-    aud.load();
+    // Pertama kali tap — load track pertama dalam gesture context
+    loadTrack(S.trackIdx, true);
     return;
   }
   if(S.playing){
     aud.pause();
     setPlay(false);
   } else {
-    const playPromise=aud.play();
-    if(playPromise!==undefined){
-      playPromise.then(()=>setPlay(true)).catch(e=>{
-        // Safari kadang butuh user gesture ulang
-        setStat('Ketuk play lagi ▶');
-        setPlay(false);
-      });
-    } else {
-      setPlay(true);
-    }
+    const p=aud.play();
+    if(p!==undefined){
+      p.then(()=>setPlay(true)).catch(()=>{ setStat('Ketuk play lagi ▶'); setPlay(false); });
+    } else { setPlay(true); }
   }
 }
 function setPlay(v){
@@ -501,10 +559,36 @@ function setPlay(v){
   document.getElementById('np-disc').classList.toggle('spin',v);
   setStat(v ? 'Sedang diputar ♪' : 'Dijeda');
   const lbl=document.getElementById('rmusic-lbl');
-  if(lbl) lbl.textContent = v ? '♪ Sedang diputar' : 'lagu.mp3';
+  if(lbl) lbl.textContent = v ? '♪ '+S.playlist[S.trackIdx].name : S.playlist[S.trackIdx].name;
 }
-function skipBk(){ aud.currentTime=Math.max(0,aud.currentTime-10); }
-function skipFw(){ aud.currentTime=Math.min(aud.duration||0,aud.currentTime+10); }
+function skipBk(){
+  // Jika > 3 detik → restart lagu, jika tidak → prev track
+  if(aud.currentTime>3){ aud.currentTime=0; return; }
+  S.trackIdx=(S.trackIdx-1+S.playlist.length)%S.playlist.length;
+  loadTrack(S.trackIdx, true);
+}
+function skipFw(){
+  S.trackIdx=(S.trackIdx+1)%S.playlist.length;
+  loadTrack(S.trackIdx, true);
+}
+function loadTrack(idx, autoplay){
+  const track=S.playlist[idx];
+  S.musicOK=false;
+  S.pendingPlay=!!autoplay;
+  aud.src=track.file;
+  aud.load();
+  setTrackUI(idx);
+  if(!autoplay) setPlay(false);
+}
+function setTrackUI(idx){
+  const name=S.playlist[idx].name;
+  document.getElementById('mp-name').textContent=name;
+  document.getElementById('np-t').textContent=name;
+  const lbl=document.getElementById('rmusic-lbl');
+  if(lbl) lbl.textContent=name;
+  document.querySelectorAll('.dot').forEach((d,i)=>d.classList.toggle('active',i===idx));
+  document.querySelectorAll('.plist-item').forEach((el,i)=>el.classList.toggle('playing',i===idx));
+}
 function setVol(v){ aud.volume=v; }
 function fmt(s){ if(!s||isNaN(s))return'0:00'; const m=Math.floor(s/60),sc=Math.floor(s%60); return m+':'+(sc<10?'0':'')+sc; }
 function onMeta(){
@@ -521,7 +605,11 @@ function onTick(){
   document.getElementById('mp-cur').textContent=c;
   document.getElementById('np-cur').textContent=c;
 }
-function onEnd(){ setPlay(false); }
+function onEnd(){
+  setPlay(false);
+  S.trackIdx=(S.trackIdx+1)%S.playlist.length;
+  loadTrack(S.trackIdx, true);
+}
 
 function exitRead(){
   const tabs=document.querySelectorAll('.tab');
