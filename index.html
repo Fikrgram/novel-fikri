@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Novel Reader</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+:root{
+  --gold:#c9a97a;--gold-light:#f5e6c8;
+  --bg:#0d0d0d;--bg2:#111111;--bg3:#1a1a1a;
+  --line:rgba(255,255,255,0.07);
+  --text:#e8d5b0;--text-muted:#666;--text-dim:#3a3a3a;
+  --safe-top:env(safe-area-inset-top,44px);
+  --safe-bottom:env(safe-area-inset-bottom,34px);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--text);font-family:'Lato',sans-serif;height:100%;overflow:hidden;-webkit-font-smoothing:antialiased}
+
+/* APP */
+.app{display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:430px;margin:0 auto;overflow:hidden}
+.app.reading .cover{height:0;overflow:hidden;transition:height .3s}
+.app.reading .mplayer{display:none}
+.app.reading .cover{padding:0}
+
+/* COVER */
+.cover{flex-shrink:0;position:relative;height:256px;background:radial-gradient(ellipse at 30% 40%,#4a1e00 0%,#1a0800 50%,#0d0d0d 100%);overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:0 24px 20px;padding-top:calc(var(--safe-top) + 4px)}
+.cover-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;opacity:0;transition:opacity .5s;z-index:0}
+.cover-bg.show{opacity:1}
+.cover-ov{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(8,3,0,.42) 0%,rgba(8,3,0,.08) 30%,rgba(8,3,0,.72) 68%,rgba(8,3,0,.97) 100%);z-index:1}
+.cover-orn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:.07;z-index:2}
+.cover-orn svg{width:250px;height:250px}
+.cv{position:relative;z-index:3}
+.cv-lbl{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);opacity:.6;margin-bottom:5px}
+.cv-title{font-family:'Playfair Display',serif;font-size:26px;font-weight:600;color:var(--gold-light);line-height:1.2}
+.cv-title em{font-style:italic;font-weight:400;color:var(--gold)}
+.cv-div{width:36px;height:1px;background:linear-gradient(to right,var(--gold),transparent);margin:9px 0}
+.cv-auth{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);opacity:.7}
+
+/* MINI PLAYER */
+.mplayer{flex-shrink:0;background:var(--bg2);border-top:.5px solid var(--line);border-bottom:.5px solid var(--line);padding:10px 14px;display:flex;align-items:center;gap:11px}
+.mp-art{width:40px;height:40px;border-radius:8px;background:linear-gradient(135deg,#3d1a00,#0d0d0d);border:.5px solid rgba(201,169,122,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mp-art svg{fill:var(--gold);width:18px;height:18px}
+.mp-art.spin{animation:spin 3s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.mp-info{flex:1;min-width:0}
+.mp-name{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mp-stat{font-size:10px;color:var(--text-muted);margin-top:1px}
+.mp-prog{margin-top:6px;display:flex;align-items:center;gap:6px}
+.prog-track{flex:1;height:2px;background:var(--bg3);border-radius:2px;position:relative;cursor:pointer}
+.prog-fill{height:100%;background:var(--gold);border-radius:2px;width:0%;transition:width .1s linear;position:relative}
+.prog-fill::after{content:'';position:absolute;right:-5px;top:-4px;width:10px;height:10px;background:var(--gold);border-radius:50%}
+.tlbl{font-size:10px;color:var(--text-muted);min-width:28px}
+.tlbl:last-child{text-align:right}
+.mp-btns{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.ibtn{background:none;border:none;cursor:pointer;padding:5px;display:flex;align-items:center;justify-content:center;opacity:.5}
+.ibtn svg{fill:var(--gold-light);width:17px;height:17px}
+.ibtn:active{opacity:.25;transform:scale(.9)}
+.playbtn{width:38px;height:38px;border-radius:50%;background:var(--gold);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .15s}
+.playbtn:active{transform:scale(.9)}
+.playbtn svg{fill:#1a0800;width:15px;height:15px;margin-left:2px}
+.playbtn.paused .ic-pause{display:none}
+.playbtn:not(.paused) .ic-play{display:none}
+
+/* TABS */
+.tabs{flex-shrink:0;display:flex;background:var(--bg2);border-bottom:.5px solid var(--line)}
+.tab{flex:1;padding:12px 4px;text-align:center;font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--text-muted);cursor:pointer;border:none;background:none;font-family:'Lato',sans-serif;position:relative}
+.tab.active{color:var(--gold)}
+.tab.active::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:1.5px;background:var(--gold);border-radius:2px 2px 0 0}
+
+/* CONTENT */
+.content{flex:1;overflow:hidden;position:relative;min-height:0;display:flex;flex-direction:column}
+.panel{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;display:none}
+.panel.active{display:block}
+.panel::-webkit-scrollbar{display:none}
+
+/* SINOPSIS */
+.spad{padding:24px;padding-bottom:calc(var(--safe-bottom)+24px)}
+.slbl{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);opacity:.6;margin-bottom:14px}
+.sbody{font-family:'Playfair Display',serif;font-size:15px;font-style:italic;color:#b09070;line-height:1.85;border-left:1.5px solid #3d1a00;padding-left:16px;margin-bottom:22px}
+.gtags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px}
+.gtag{padding:5px 13px;border:.5px solid rgba(201,169,122,.25);border-radius:20px;font-size:11px;color:var(--gold)}
+.irow{display:flex;justify-content:space-between;padding:11px 0;border-bottom:.5px solid var(--line)}
+.ik{font-size:12px;color:var(--text-muted)} .iv{font-size:12px;color:var(--text)}
+.btn-p{width:100%;padding:14px;background:var(--gold);color:#1a0800;border:none;border-radius:10px;font-size:13px;font-family:'Lato',sans-serif;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;cursor:pointer;margin-top:10px}
+.btn-p:active{opacity:.8}
+.btn-g{width:100%;padding:13px;background:transparent;color:var(--gold);border:.5px solid rgba(201,169,122,.3);border-radius:10px;font-size:12px;font-family:'Lato',sans-serif;letter-spacing:1.2px;text-transform:uppercase;cursor:pointer;margin-top:8px}
+.btn-g:active{background:rgba(201,169,122,.07)}
+
+/* CHAPTERS */
+.chi{display:flex;align-items:center;gap:14px;padding:16px 22px;border-bottom:.5px solid var(--line);cursor:pointer}
+.chi:active{background:rgba(255,255,255,.02)}
+.chn{font-family:'Playfair Display',serif;font-size:24px;font-style:italic;color:rgba(201,169,122,.18);min-width:32px;line-height:1}
+.chinfo{flex:1} .cht{font-size:14px;color:var(--text)} .chs{font-size:11px;color:var(--text-muted);margin-top:2px}
+.charr{color:var(--text-dim);font-size:20px}
+.chfoot{padding:18px 22px;padding-bottom:calc(var(--safe-bottom)+18px)}
+
+/* PDF READER — full height flex */
+#panel-baca{display:none;flex-direction:column;overflow:hidden;position:absolute;inset:0}
+#panel-baca.active{display:flex}
+.reader-tb{flex-shrink:0;background:var(--bg2);border-bottom:.5px solid var(--line);display:flex;align-items:center;padding:0 2px}
+.reader-music-bar{flex-shrink:0;background:#0d0d0d;border-bottom:.5px solid var(--line);display:flex;align-items:center;gap:10px;padding:8px 14px}
+.reader-music-bar svg{fill:var(--gold);width:14px;height:14px;flex-shrink:0}
+.reader-music-bar span{font-size:11px;color:var(--text-muted);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rm-play{width:28px;height:28px;border-radius:50%;background:var(--gold);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rm-play svg{fill:#1a0800;width:11px;height:11px;margin-left:1px}
+.rm-play.paused .ic-pause{display:none}
+.rm-play:not(.paused) .ic-play{display:none}
+.tb-btn{background:none;border:none;cursor:pointer;padding:11px 9px;display:flex;align-items:center;gap:5px;color:var(--text-muted);font-size:12px;font-family:'Lato',sans-serif}
+.tb-btn svg{fill:var(--text-muted);width:17px;height:17px}
+.tb-btn:active{opacity:.5}
+.tb-btn.g{color:var(--gold)} .tb-btn.g svg{fill:var(--gold)}
+.pg-info{flex:1;text-align:center;font-size:12px;color:var(--text-muted);pointer-events:none;padding:0 4px}
+.reader-pages{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#18160f;display:flex;flex-direction:column;align-items:center;padding:14px 8px calc(var(--safe-bottom)+14px);gap:12px;min-height:0;height:0}
+.reader-pages::-webkit-scrollbar{display:none}
+canvas.pg{display:block;border-radius:3px;box-shadow:0 2px 16px rgba(0,0,0,.7);width:100%;height:auto}
+.r-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:14px;color:var(--text-muted);font-size:13px}
+.spinner{width:30px;height:30px;border:2px solid var(--bg3);border-top:2px solid var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+.r-err{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:10px;padding:24px;text-align:center}
+.r-err strong{color:var(--gold);font-size:14px}
+.r-err p{font-size:12px;color:var(--text-muted);line-height:1.7}
+
+/* MUSIK */
+.mpad{padding:24px;padding-bottom:calc(var(--safe-bottom)+24px)}
+.npcard{background:var(--bg2);border:.5px solid var(--line);border-radius:16px;padding:22px;text-align:center;margin-bottom:16px}
+.npdisc{width:72px;height:72px;border-radius:50%;background:radial-gradient(circle,#3d1a00 30%,#0d0d0d 100%);border:3px solid rgba(201,169,122,.15);display:flex;align-items:center;justify-content:center;margin:0 auto 12px}
+.npdisc svg{fill:var(--gold);width:24px;height:24px}
+.npdisc.spin{animation:spin 3s linear infinite}
+.npt{font-family:'Playfair Display',serif;font-size:17px;color:var(--text);margin-bottom:3px}
+.nps{font-size:12px;color:var(--text-muted)}
+.npprog{display:flex;align-items:center;gap:6px;margin-top:14px}
+.bigc{display:flex;align-items:center;justify-content:center;gap:20px;margin-top:14px}
+.bigc .ibtn{opacity:.6} .bigc .ibtn svg{width:22px;height:22px}
+.playbtn-lg{width:52px;height:52px;border-radius:50%;background:var(--gold);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.playbtn-lg:active{transform:scale(.92)}
+.playbtn-lg svg{fill:#1a0800;width:22px;height:22px;margin-left:3px}
+.playbtn-lg.paused .ic-pause{display:none}
+.playbtn-lg:not(.paused) .ic-play{display:none}
+.volrow{display:flex;align-items:center;gap:10px;margin-top:14px;padding:0 2px}
+.volrow svg{fill:var(--text-muted);width:15px;height:15px;flex-shrink:0}
+input[type=range].vol{flex:1;-webkit-appearance:none;height:2px;background:var(--bg3);border-radius:2px;outline:none}
+input[type=range].vol::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--gold);cursor:pointer}
+
+/* MODAL */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.87);z-index:999;display:none;align-items:flex-end}
+.modal.open{display:flex}
+.msheet{background:#181818;width:100%;border-radius:20px 20px 0 0;padding:22px 22px calc(var(--safe-bottom)+22px);max-height:88vh;overflow-y:auto}
+.mhandle{width:38px;height:4px;background:var(--text-dim);border-radius:2px;margin:0 auto 18px}
+.mtitle{font-family:'Playfair Display',serif;font-size:19px;color:var(--text);margin-bottom:18px}
+.flbl{font-size:10px;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:7px}
+.fgrp{margin-bottom:16px}
+.finp,.fta{width:100%;background:var(--bg3);border:.5px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;font-family:'Lato',sans-serif;outline:none}
+.finp:focus,.fta:focus{border-color:rgba(201,169,122,.4)}
+.fta{resize:none;height:110px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- COVER -->
+  <div class="cover">
+    <img class="cover-bg" src="background.png" onload="this.classList.add('show')" onerror="this.remove()">
+    <div class="cover-ov"></div>
+    <div class="cover-orn">
+      <svg viewBox="0 0 250 250" fill="none">
+        <circle cx="125" cy="125" r="115" stroke="#c9a97a" stroke-width=".5"/>
+        <circle cx="125" cy="125" r="85" stroke="#c9a97a" stroke-width=".5"/>
+        <circle cx="125" cy="125" r="55" stroke="#c9a97a" stroke-width=".5"/>
+        <circle cx="125" cy="125" r="25" stroke="#c9a97a" stroke-width=".5"/>
+        <line x1="125" y1="5" x2="125" y2="245" stroke="#c9a97a" stroke-width=".3"/>
+        <line x1="5" y1="125" x2="245" y2="125" stroke="#c9a97a" stroke-width=".3"/>
+        <line x1="40" y1="40" x2="210" y2="210" stroke="#c9a97a" stroke-width=".3"/>
+        <line x1="210" y1="40" x2="40" y2="210" stroke="#c9a97a" stroke-width=".3"/>
+        <polygon points="125,8 148,75 218,75 163,115 185,182 125,143 65,182 87,115 32,75 102,75" stroke="#c9a97a" stroke-width=".5" fill="none"/>
+      </svg>
+    </div>
+    <div class="cv">
+      <div class="cv-lbl">Novel</div>
+      <div class="cv-title" id="disp-title">Judul <em>Novel Anda</em></div>
+      <div class="cv-div"></div>
+      <div class="cv-auth" id="disp-author">Nama Penulis</div>
+    </div>
+  </div>
+
+  <!-- MINI PLAYER -->
+  <div class="mplayer">
+    <div class="mp-art" id="mp-art">
+      <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+    </div>
+    <div class="mp-info">
+      <div class="mp-name" id="mp-name">lagu.mp3</div>
+      <div class="mp-stat" id="mp-stat">Memuat musik...</div>
+      <div class="mp-prog">
+        <span class="tlbl" id="mp-cur">0:00</span>
+        <div class="prog-track" id="pt1" ontouchstart="sStart(event,this)" ontouchmove="sMove(event)" ontouchend="sEnd(event)">
+          <div class="prog-fill" id="pf1"></div>
+        </div>
+        <span class="tlbl" id="mp-dur">0:00</span>
+      </div>
+    </div>
+    <div class="mp-btns">
+      <button class="ibtn" onclick="skipBk()"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+      <button class="playbtn paused" id="mp-play" onclick="togglePlay()">
+        <svg class="ic-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <svg class="ic-pause" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      </button>
+      <button class="ibtn" onclick="skipFw()"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8l-5.5 4zM16 6h2v12h-2z"/></svg></button>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('sinopsis',this)">Sinopsis</button>
+    <button class="tab" onclick="showTab('bab',this)">Bab</button>
+    <button class="tab" onclick="showTab('baca',this)">Baca</button>
+    <button class="tab" onclick="showTab('musik',this)">Musik</button>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- SINOPSIS -->
+    <div class="panel active" id="panel-sinopsis">
+      <div class="spad">
+        <div class="slbl">Tentang Novel</div>
+        <div class="sbody" id="disp-sinopsis">Februari yang Tak Pernah Usai
+2021 — 2026 · Sebuah Kisah Nyata
+Semua bermula dari satu pagi di lapangan sekolah, satu pesan kecil di bulan Februari, dan seorang gadis bernama Fanny.
+Lima tahun. Dari tidak punya apa-apa sampai bisa melihat dunia. Dari dua anak sekolah yang belum tahu apa itu cinta, sampai dua orang dewasa yang sudah saling mengenal lebih dalam dari siapa pun.
+Tapi pada 24 April 2026, semuanya berubah dalam satu percakapan.
+Sebuah kisah nyata tentang cinta, perjuangan, dan kenangan yang tidak pernah benar-benar pergi.</div>
+        <div class="gtags" id="disp-genre"><span class="gtag">Fiksi</span><span class="gtag">Romantis</span><span class="gtag">Drama</span></div>
+        <div class="irow"><span class="ik">Penulis</span><span class="iv" id="disp-penulis">Nama Penulis</span></div>
+        <div class="irow"><span class="ik">Tahun</span><span class="iv" id="disp-tahun">2024</span></div>
+        <div class="irow"><span class="ik">Bahasa</span><span class="iv">Indonesia</span></div>
+        <button class="btn-p" style="margin-top:20px" onclick="goRead()">📖 Baca Sekarang</button>
+        <button class="btn-g" onclick="openEdit()">✏ Edit Info Novel</button>
+      </div>
+    </div>
+
+    <!-- BAB -->
+    <div class="panel" id="panel-bab">
+      <div id="ch-list"></div>
+      <div class="chfoot"><button class="btn-g" onclick="openAddCh()">+ Tambah Bab</button></div>
+    </div>
+
+    <!-- BACA — PDF Reader -->
+    <div class="panel" id="panel-baca">
+      <div class="reader-tb">
+        <button class="tb-btn" onclick="exitRead()" style="padding:11px 12px">
+          <svg viewBox="0 0 24 24" style="fill:var(--gold);width:18px;height:18px"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+        </button>
+        <button class="tb-btn" onclick="prevPage()">
+          <svg viewBox="0 0 24 24"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        </button>
+        <div class="pg-info" id="pg-info">Memuat PDF...</div>
+        <button class="tb-btn" onclick="nextPage()">
+          <svg viewBox="0 0 24 24"><path d="M10 6 8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+        </button>
+        <button class="tb-btn g" onclick="zoomOut()">
+          <svg viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>
+        </button>
+        <button class="tb-btn g" onclick="zoomIn()">
+          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        </button>
+      </div>
+      <div class="reader-music-bar" id="rmusic-bar">
+        <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+        <span id="rmusic-lbl">lagu.mp3</span>
+        <button onclick="togglePlay()" id="rmusic-play" class="rm-play paused">
+          <svg class="ic-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <svg class="ic-pause" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        </button>
+      </div>
+      <div class="reader-pages" id="rpages">
+        <div class="r-loading" id="r-load">
+          <div class="spinner"></div>
+          <span>Memuat novel.pdf...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MUSIK -->
+    <div class="panel" id="panel-musik">
+      <div class="mpad">
+        <div class="slbl">Pemutar Musik</div>
+        <div class="npcard">
+          <div class="npdisc" id="np-disc">
+            <svg viewBox="0 0 24 24"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg>
+          </div>
+          <div class="npt" id="np-t">lagu.mp3</div>
+          <div class="nps" id="np-s">Memuat musik...</div>
+          <div class="npprog">
+            <span class="tlbl" id="np-cur">0:00</span>
+            <div class="prog-track" id="pt2" ontouchstart="sStart(event,this)" ontouchmove="sMove(event)" ontouchend="sEnd(event)">
+              <div class="prog-fill" id="pf2"></div>
+            </div>
+            <span class="tlbl" id="np-dur">0:00</span>
+          </div>
+          <div class="bigc">
+            <button class="ibtn" onclick="skipBk()"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+            <button class="playbtn-lg paused" id="np-play" onclick="togglePlay()">
+              <svg class="ic-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+              <svg class="ic-pause" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            <button class="ibtn" onclick="skipFw()"><svg viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8l-5.5 4zM16 6h2v12h-2z"/></svg></button>
+          </div>
+          <div class="volrow">
+            <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm10 .17v5.66A4.5 4.5 0 0 0 13 9.17z"/></svg>
+            <input type="range" class="vol" min="0" max="1" step="0.01" value="1" oninput="setVol(this.value)">
+            <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal" id="m-edit">
+  <div class="msheet">
+    <div class="mhandle"></div>
+    <div class="mtitle">Edit Info Novel</div>
+    <div class="fgrp"><div class="flbl">Febuari yang tak pernah usai</div><input class="finp" id="i-title" placeholder="Judul novel..."></div>
+    <div class="fgrp"><div class="flbl">fikri hasyim al rasyid</div><input class="finp" id="i-author" placeholder="Nama penulis..."></div>
+    <div class="fgrp"><div class="flbl">Sinopsis</div><textarea class="fta" id="i-sinopsis" placeholder="Sinopsis..."></textarea></div>
+    <div class="fgrp"><div class="flbl">Genre (pisah koma)</div><input class="finp" id="i-genre" placeholder="Fiksi, Romantis, Drama"></div>
+    <div class="fgrp"><div class="flbl">Tahun Terbit</div><input class="finp" id="i-tahun" placeholder="2024"></div>
+    <button class="btn-p" onclick="saveEdit()">Simpan</button>
+    <button class="btn-g" onclick="closeM('m-edit')">Batal</button>
+  </div>
+</div>
+
+<!-- ADD CHAPTER MODAL -->
+<div class="modal" id="m-ch">
+  <div class="msheet">
+    <div class="mhandle"></div>
+    <div class="mtitle">Tambah Bab</div>
+    <div class="fgrp"><div class="flbl">Judul Bab</div><input class="finp" id="i-cht" placeholder="Judul bab..."></div>
+    <div class="fgrp"><div class="flbl">Deskripsi</div><input class="finp" id="i-chd" placeholder="Keterangan singkat..."></div>
+    <button class="btn-p" onclick="saveCh()">Tambah</button>
+    <button class="btn-g" onclick="closeM('m-ch')">Batal</button>
+  </div>
+</div>
+
+<audio id="aud" src="lagu.mp3"
+  oncanplay="onMusicOK()"
+  onerror="onMusicErr()"
+  ontimeupdate="onTick()"
+  onloadedmetadata="onMeta()"
+  onended="onEnd()">
+</audio>
+
+<script>
+/* ── PDF.js worker ── */
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+/* ── STATE ── */
+const S = {
+  title:'Judul Novel Anda', author:'Nama Penulis',
+  sinopsis:'Masukkan sinopsis novel Anda di sini. Kisah yang penuh dengan misteri, cinta, dan perjuangan — mengharukan setiap hati yang membacanya...',
+  genre:['Fiksi','Romantis','Drama'], tahun:'2024',
+  chapters:[
+    {t:'Bab Pertama', d:'Awal dari segalanya'},
+    {t:'Bab Kedua',   d:'Pertemuan yang mengubah segalanya'},
+    {t:'Bab Ketiga',  d:'Rahasia yang tersembunyi'},
+  ],
+  playing:false, musicOK:false,
+};
+
+const aud = document.getElementById('aud');
+let seeking=false, seekEl=null;
+
+/* ── PDF ── */
+let pdfDoc=null, curPg=1, zoom=1.0;
+
+/* ── TABS ── */
+function showTab(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  btn.classList.add('active');
+  const app=document.querySelector('.app');
+  if(id==='baca'){
+    app.classList.add('reading');
+  } else {
+    app.classList.remove('reading');
+  }
+}
+function goRead(){
+  const tabs=document.querySelectorAll('.tab');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  tabs.forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-baca').classList.add('active');
+  tabs[2].classList.add('active');
+  document.querySelector('.app').classList.add('reading');
+}
+
+/* ── RENDER ── */
+function render(){
+  const ws=S.title.split(' ');
+  document.getElementById('disp-title').innerHTML=
+    ws.length>1 ? ws.slice(0,-1).join(' ')+' <em>'+ws.slice(-1)+'</em>' : S.title;
+  document.getElementById('disp-author').textContent=S.author;
+  document.getElementById('disp-penulis').textContent=S.author;
+  document.getElementById('disp-sinopsis').textContent=S.sinopsis;
+  document.getElementById('disp-tahun').textContent=S.tahun;
+  document.getElementById('disp-genre').innerHTML=S.genre.map(g=>`<span class="gtag">${g}</span>`).join('');
+  document.getElementById('ch-list').innerHTML=S.chapters.map((c,i)=>`
+    <div class="chi" onclick="goRead()">
+      <div class="chn">${i+1}</div>
+      <div class="chinfo"><div class="cht">${c.t}</div><div class="chs">${c.d}</div></div>
+      <div class="charr">›</div>
+    </div>`).join('');
+}
+
+/* ── MODALS ── */
+function openEdit(){
+  document.getElementById('i-title').value=S.title;
+  document.getElementById('i-author').value=S.author;
+  document.getElementById('i-sinopsis').value=S.sinopsis;
+  document.getElementById('i-genre').value=S.genre.join(', ');
+  document.getElementById('i-tahun').value=S.tahun;
+  document.getElementById('m-edit').classList.add('open');
+}
+function saveEdit(){
+  S.title   = document.getElementById('i-title').value   || S.title;
+  S.author  = document.getElementById('i-author').value  || S.author;
+  S.sinopsis= document.getElementById('i-sinopsis').value|| S.sinopsis;
+  S.genre   = document.getElementById('i-genre').value.split(',').map(g=>g.trim()).filter(Boolean);
+  S.tahun   = document.getElementById('i-tahun').value   || S.tahun;
+  render(); closeM('m-edit');
+}
+function openAddCh(){ document.getElementById('m-ch').classList.add('open'); }
+function saveCh(){
+  const t=document.getElementById('i-cht').value; if(!t)return;
+  S.chapters.push({t, d:document.getElementById('i-chd').value||''});
+  render(); closeM('m-ch');
+  document.getElementById('i-cht').value='';
+  document.getElementById('i-chd').value='';
+}
+function closeM(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal').forEach(m=>
+  m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); }));
+
+/* ── MUSIC ── */
+function setStat(s){
+  document.getElementById('mp-stat').textContent=s;
+  document.getElementById('np-s').textContent=s;
+}
+function onMusicOK(){ S.musicOK=true; setStat('Siap diputar'); }
+function onMusicErr(){ setStat('lagu.mp3 tidak ditemukan'); }
+
+function togglePlay(){
+  if(!S.musicOK){ setStat('Musik belum siap'); return; }
+  if(S.playing){ aud.pause(); setPlay(false); }
+  else { aud.play().catch(()=>setStat('Ketuk lagi untuk memutar')); setPlay(true); }
+}
+function setPlay(v){
+  S.playing=v;
+  ['mp-play','np-play','rmusic-play'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){ v ? el.classList.remove('paused') : el.classList.add('paused'); }
+  });
+  document.getElementById('mp-art').classList.toggle('spin',v);
+  document.getElementById('np-disc').classList.toggle('spin',v);
+  setStat(v ? 'Sedang diputar ♪' : 'Dijeda');
+  const lbl=document.getElementById('rmusic-lbl');
+  if(lbl) lbl.textContent = v ? '♪ Sedang diputar' : 'lagu.mp3';
+}
+function skipBk(){ aud.currentTime=Math.max(0,aud.currentTime-10); }
+function skipFw(){ aud.currentTime=Math.min(aud.duration||0,aud.currentTime+10); }
+function setVol(v){ aud.volume=v; }
+function fmt(s){ if(!s||isNaN(s))return'0:00'; const m=Math.floor(s/60),sc=Math.floor(s%60); return m+':'+(sc<10?'0':'')+sc; }
+function onMeta(){
+  const d=fmt(aud.duration);
+  document.getElementById('mp-dur').textContent=d;
+  document.getElementById('np-dur').textContent=d;
+}
+function onTick(){
+  if(seeking)return;
+  const p=aud.duration?(aud.currentTime/aud.duration*100):0;
+  document.getElementById('pf1').style.width=p+'%';
+  document.getElementById('pf2').style.width=p+'%';
+  const c=fmt(aud.currentTime);
+  document.getElementById('mp-cur').textContent=c;
+  document.getElementById('np-cur').textContent=c;
+}
+function onEnd(){ setPlay(false); }
+
+function exitRead(){
+  const tabs=document.querySelectorAll('.tab');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  tabs.forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-sinopsis').classList.add('active');
+  tabs[0].classList.add('active');
+  document.querySelector('.app').classList.remove('reading');
+}
+
+/* ── SEEK ── */
+function sStart(e,el){ seeking=true; seekEl=el; sMove(e); }
+function sMove(e){
+  if(!seeking||!aud.duration)return;
+  e.preventDefault();
+  const t=e.touches[0], r=seekEl.getBoundingClientRect();
+  const p=Math.max(0,Math.min(1,(t.clientX-r.left)/r.width));
+  document.getElementById('pf1').style.width=(p*100)+'%';
+  document.getElementById('pf2').style.width=(p*100)+'%';
+}
+function sEnd(e){
+  if(!seeking||!aud.duration)return;
+  const t=e.changedTouches[0], r=seekEl.getBoundingClientRect();
+  aud.currentTime=Math.max(0,Math.min(1,(t.clientX-r.left)/r.width))*aud.duration;
+  seeking=false; seekEl=null;
+}
+
+/* ── PDF READER ── */
+async function loadPDF(){
+  const wrap=document.getElementById('rpages');
+  try {
+    pdfDoc = await pdfjsLib.getDocument('novel.pdf').promise;
+    curPg=1; zoom=1.0;
+    await renderAll();
+  } catch(e) {
+    wrap.innerHTML=`<div class="r-err">
+      <strong>novel.pdf tidak ditemukan</strong>
+      <p>Pastikan file <strong style="color:var(--gold)">novel.pdf</strong> ada di folder yang sama dengan file HTML ini.</p>
+    </div>`;
+    document.getElementById('pg-info').textContent='novel.pdf tidak ditemukan';
+  }
+}
+
+async function renderAll(){
+  if(!pdfDoc) return;
+  const wrap=document.getElementById('rpages');
+  wrap.innerHTML='<div class="r-loading"><div class="spinner"></div><span>Merender halaman...</span></div>';
+  const total=pdfDoc.numPages;
+
+  // render halaman satu per satu lalu append
+  const frag=document.createDocumentFragment();
+  for(let i=1;i<=total;i++){
+    const canvas=await renderOnePage(i);
+    frag.appendChild(canvas);
+  }
+  wrap.innerHTML='';
+  wrap.appendChild(frag);
+
+  document.getElementById('pg-info').textContent=`Halaman 1 dari ${total}`;
+  setupObserver(total);
+}
+
+async function renderOnePage(num){
+  const page=await pdfDoc.getPage(num);
+  const dpr=window.devicePixelRatio||1;          // 2x atau 3x di iPhone
+  const vw=Math.min(window.innerWidth,430)-16;   // lebar CSS (padding 8px tiap sisi)
+  const vp0=page.getViewport({scale:1});
+  const scale=(vw/vp0.width)*zoom;
+  const vp=page.getViewport({scale:scale*dpr});  // render di resolusi fisik penuh
+
+  const canvas=document.createElement('canvas');
+  canvas.className='pg';
+  canvas.id='pg'+num;
+  canvas.width=vp.width;                         // ukuran piksel fisik (2x/3x)
+  canvas.height=vp.height;
+  canvas.style.width=vw+'px';                    // tampil di ukuran CSS normal
+  canvas.style.height=Math.round(vp0.height*(vw/vp0.width))+'px';
+
+  const ctx=canvas.getContext('2d');
+  await page.render({canvasContext:ctx, viewport:vp}).promise;
+  return canvas;
+}
+
+function setupObserver(total){
+  const wrap=document.getElementById('rpages');
+  const info=document.getElementById('pg-info');
+  const obs=new IntersectionObserver(entries=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){
+        const n=parseInt(e.target.id.replace('pg',''));
+        if(n){ curPg=n; info.textContent=`Halaman ${n} dari ${total}`; }
+      }
+    });
+  },{root:wrap, threshold:.4});
+  document.querySelectorAll('.pg').forEach(c=>obs.observe(c));
+}
+
+function prevPage(){
+  if(!pdfDoc||curPg<=1)return;
+  curPg--;
+  const el=document.getElementById('pg'+curPg);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function nextPage(){
+  if(!pdfDoc||curPg>=pdfDoc.numPages)return;
+  curPg++;
+  const el=document.getElementById('pg'+curPg);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function zoomIn(){
+  if(!pdfDoc)return;
+  zoom=Math.min(zoom+.25,3);
+  await renderAll();
+}
+async function zoomOut(){
+  if(!pdfDoc)return;
+  zoom=Math.max(zoom-.25,.5);
+  await renderAll();
+}
+
+/* ── INIT ── */
+render();
+loadPDF();
+</script>
+</body>
+</html>
